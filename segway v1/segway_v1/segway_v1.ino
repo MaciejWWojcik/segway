@@ -21,6 +21,8 @@ PWM_A   = 5,DIR_1_A   = 10,DIR_2_A   = 9,BRAKE_A = 9,
 PWM_B   = 3,DIR_1_B   = 7,DIR_2_B   = 8,BRAKE_B = 8;
 
 float DEBUG =1;   // 0 false, 1 true
+
+float angle=0, lastAngle=0, lastLastAngle=0;
  
 void setup(){
   Serial.begin(115200);
@@ -63,8 +65,15 @@ void loop()
   kalRoll = kalmanX.update(accRoll, gyr.XAxis);
 
   //--------------------------------------------PID-----------------------------------------------
+  float A= 0.99;
+  angle += gyr.XAxis * 0.001;
+  angle = angle * A + accRoll*(1-A);
+
+  float dAngle = 3*angle - 4*lastAngle + lastLastAngle;
+  lastLastAngle = lastAngle;
+  lastAngle = angle;
   
-  float sum = accRoll;
+  float sum = 0.2 * angle + 3 * dAngle;
   // accRoll 
   // accRoll + gyr.XAxis
   // accRoll + deriv(gyr.XAxis)
@@ -75,27 +84,32 @@ void loop()
   //--------------------------------------------SCALING VALUES------------------------------------
   
   if(sum>0){
-    Action = scaleValue(sum, 0, 80, 85, 255);
+    Action = scaleValue(sum, 0, 15, 85, 255);
   }else if(sum<0){
-    Action = scaleValue(-sum, 0, 80, 85, 255);
+    Action = scaleValue(-sum, 0, 15, 85, 255);
     Action *=-1;
   }else{
     Action =0;
   }
-
+  Serial.println(sum);
+  Serial.print("      angle");
+  Serial.println(angle);
   //--------------------------------------------MAKE MOVE-----------------------------------------
-  if (Action > 0) {
-    digitalWrite(LED_BUILTIN, HIGH);
-    forward(Action);
-  }
-  else if (Action < 0) {
-    digitalWrite(LED_BUILTIN, HIGH);
-    backward(Action);
-  }
-  else {
-    digitalWrite(LED_BUILTIN, LOW);
-    nothing();
-  }
+
+  if(!DEBUG){
+    if (Action > 0) {
+      digitalWrite(LED_BUILTIN, HIGH);
+      forward(Action);
+    }
+    else if (Action < 0) {
+      digitalWrite(LED_BUILTIN, HIGH);
+      backward(Action);
+    }
+    else {
+      digitalWrite(LED_BUILTIN, LOW);
+      nothing();
+    }
+  }  
 
   //--------------------------------------------DEBUG---------------------------------------------
   
@@ -103,17 +117,17 @@ void loop()
   // accRoll zwraca kąt o wiele szybciej, kalRoll jest dużo wolniejszy - może używa go tylko do poprawiania
   
   if(DEBUG){
-    Serial.print("GYRO = ");  
-    Serial.print(gyr.XAxis);
-    
-    Serial.print("ACC = ");  
-    Serial.print(acc.XAxis);
-    Serial.print("ACC 2= ");  
-    Serial.print(accRoll);
-    
-    Serial.print(" (K)Roll = ");
-    Serial.print(kalRoll); 
-    Serial.println();
+//    Serial.print("GYRO = ");  
+//    Serial.print(gyr.XAxis);
+//    
+//    Serial.print("ACC = ");  
+//    Serial.print(acc.XAxis);
+//    Serial.print("ACC 2= ");  
+//    Serial.print(accRoll);
+//    
+//    Serial.print(" (K)Roll = ");
+//    Serial.print(kalRoll); 
+//    Serial.println();
   }
   
 }
